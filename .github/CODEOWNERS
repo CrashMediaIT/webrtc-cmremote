@@ -1,0 +1,14 @@
+# CODEOWNERS for webrtc-cmremote
+#
+# This repository is a fork of webrtc-rs/dtls with ring crypto replaced by aws-lc-rs.
+# It is maintained as part of the CMRemote project.
+#
+# Per ADR 0001 (https://github.com/CrashMediaIT/CMRemote/blob/master/docs/decisions/0001-spike-fork-instructions.md),
+# all changes to this fork must be reviewed by the same set of people who own the agent-rs/ workspace
+# in the CMRemote repository.
+#
+# Every release rebase requires approval from these maintainers.
+
+# Default owners for everything in the repo
+# TODO: Replace with actual agent-rs/ CODEOWNERS from CMRemote repository
+* @CrashMediaIT/cmremote-maintainers
