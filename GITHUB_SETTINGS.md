@@ -76,6 +76,43 @@ CMRemote fork of webrtc-rs/dtls with ring swapped for aws-lc-rs. Tracks ADR 0001
 4. Configure all the settings listed above
 5. Save changes
 
+### 4a. Branch Protection Rules for `cmremote/*` Long-Lived Branches
+
+[ADR 0001 Step 10](https://github.com/CrashMediaIT/CMRemote/blob/master/docs/decisions/0001-spike-fork-instructions.md) declares the v0.5.4 dtls fork branch and its tag **immutable** so the existing `[patch.crates-io].webrtc-dtls` entry in `agent-rs/Cargo.toml` continues to resolve indefinitely. Step 10 also creates a second long-lived branch (`cmremote/v0.17.0-aws-lc-rs`) for the monorepo fork covering `webrtc/`, `dtls/`, `stun/`, and `turn/`. Both branches need protection rules to back the "immutable" claim.
+
+**Setting:** Add a branch protection rule with the pattern `cmremote/*` (covers both existing and future `cmremote/v<NEW>-aws-lc-rs` branches) configured as follows:
+
+- Require pull request reviews before merging: **Enabled** (1 approval, Code Owners required)
+- Require status checks to pass before merging: **Enabled** (same matrix as `main`; for the monorepo branch, the matrix is workspace-scoped per ADR 0001 Step 15)
+- Require conversation resolution before merging: **Enabled**
+- Restrict who can push to matching branches: **Enabled** (maintainers only)
+- Allow force pushes: **Disabled**
+- Allow deletions: **Disabled**
+- Do not allow bypassing the above settings: **Enabled**
+
+**How to configure:**
+1. Go to repository Settings → Branches
+2. Click "Add rule" under Branch protection rules
+3. Enter `cmremote/*` in the branch name pattern
+4. Configure the settings listed above
+5. Save changes
+
+**Note:** Until the monorepo fork actually lands (Step 10 onward), only the existing `cmremote/v0.5.4-aws-lc-rs` branch matches this pattern. The pattern is forward-looking by design so no settings change is required when Step 10 creates the second branch.
+
+### 4b. Tag Protection Rules for `v*-cmremote.*`
+
+CMRemote-fork release tags (`v0.5.4-cmremote.1`, future `v0.17.0-cmremote.1`, etc.) are addressed directly by `[patch.crates-io]` entries in `agent-rs/Cargo.toml` and must never be moved or deleted.
+
+**Setting:** Add a tag protection rule with the pattern `v*-cmremote.*`.
+
+**How to configure:**
+1. Go to repository Settings → Tags
+2. Click "New rule"
+3. Enter `v*-cmremote.*` in the pattern field
+4. Save changes
+
+This restricts who can create, update, or delete matching tags to repository administrators / maintainers.
+
 ### 5. Dependabot Alerts
 
 **Setting:** Enable Dependabot security updates and version updates
@@ -102,6 +139,9 @@ After manual configuration, verify:
 - [ ] Branch protection requires status checks to pass
 - [ ] Force pushes are disabled on `main`
 - [ ] Branch deletion is disabled on `main`
+- [ ] Branch protection rule for `cmremote/*` is configured (covers `cmremote/v0.5.4-aws-lc-rs` and future monorepo branches)
+- [ ] Force pushes and deletions are disabled on `cmremote/*` branches
+- [ ] Tag protection rule for `v*-cmremote.*` is configured
 - [ ] CODEOWNERS file is recognized (test by opening a PR)
 - [ ] Dependabot alerts are enabled
 - [ ] Dependabot security updates are enabled

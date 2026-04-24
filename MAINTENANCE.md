@@ -2,6 +2,8 @@
 
 This repository is a fork of [`webrtc-rs/dtls`](https://github.com/webrtc-rs/dtls) with the `ring` cryptography library replaced by `aws-lc-rs`. It is maintained as part of the [CMRemote project](https://github.com/CrashMediaIT/CMRemote).
 
+> **Scope:** This guide covers the `cmremote/v0.5.4-aws-lc-rs` branch (the dtls-only fork tagged `v0.5.4-cmremote.1`). The forthcoming `cmremote/v0.17.0-aws-lc-rs` monorepo branch (ADR 0001 Steps 10–18, covering `webrtc/`, `dtls/`, `stun/`, `turn/`) will carry its own sibling guidance per Step 18; the maintenance contract is structurally the same but the rebase trigger surface is wider (RFCs 5389 and 5766 are added) and the substitution is per-sub-crate. See the [branch map in README.md](README.md#branch-map).
+
 ## Purpose
 
 This fork exists to enable CMRemote's `agent-rs/` workspace to use WebRTC DTLS without depending on the `ring` crate, which is banned in the workspace per [ADR 0001](https://github.com/CrashMediaIT/CMRemote/blob/master/docs/decisions/0001-webrtc-crypto-provider.md).
