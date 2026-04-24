@@ -872,7 +872,12 @@ async fn test_srtp_configuration() -> Result<()> {
     Ok(())
 }
 
+// Disabled in the CMRemote fork: this test exercises the upstream
+// `rustls::WebPKIVerifier` default for client-certificate chain validation,
+// which the fork replaced with a placeholder per ADR 0001 (CMRemote consumers
+// always install an SDP-fingerprint `verify_peer_certificate` callback).
 #[tokio::test]
+#[ignore = "CMRemote fork drops upstream WebPKIVerifier; see ADR 0001"]
 async fn test_client_certificate() -> Result<()> {
     /*env_logger::Builder::new()
     .format(|buf, record| {
@@ -892,13 +897,13 @@ async fn test_client_certificate() -> Result<()> {
     let server_name = "localhost".to_owned();
 
     let srv_cert = Certificate::generate_self_signed(vec!["localhost".to_owned()])?;
-    let mut srv_ca_pool = rustls::RootCertStore::empty();
+    let mut srv_ca_pool = crate::pki::RootCertStore::empty();
     srv_ca_pool
         .add(&srv_cert.certificate[0])
         .map_err(|_err| Error::Other("add srv_cert error".to_owned()))?;
 
     let cert = Certificate::generate_self_signed(vec!["localhost".to_owned()])?;
-    let mut ca_pool = rustls::RootCertStore::empty();
+    let mut ca_pool = crate::pki::RootCertStore::empty();
     ca_pool
         .add(&cert.certificate[0])
         .map_err(|_err| Error::Other("add cert error".to_owned()))?;
@@ -1335,25 +1340,30 @@ async fn test_extended_master_secret() -> Result<()> {
     Ok(())
 }
 
-fn fn_not_expected_chain(_cert: &[Vec<u8>], chain: &[rustls::Certificate]) -> Result<()> {
+fn fn_not_expected_chain(_cert: &[Vec<u8>], chain: &[crate::pki::Certificate]) -> Result<()> {
     if !chain.is_empty() {
         return Err(Error::Other(ERR_NOT_EXPECTED_CHAIN.to_owned()));
     }
     Ok(())
 }
 
-fn fn_expected_chain(_cert: &[Vec<u8>], chain: &[rustls::Certificate]) -> Result<()> {
+fn fn_expected_chain(_cert: &[Vec<u8>], chain: &[crate::pki::Certificate]) -> Result<()> {
     if chain.is_empty() {
         return Err(Error::Other(ERR_EXPECTED_CHAIN.to_owned()));
     }
     Ok(())
 }
 
-fn fn_wrong_cert(_cert: &[Vec<u8>], _chain: &[rustls::Certificate]) -> Result<()> {
+fn fn_wrong_cert(_cert: &[Vec<u8>], _chain: &[crate::pki::Certificate]) -> Result<()> {
     Err(Error::Other(ERR_WRONG_CERT.to_owned()))
 }
 
+// Disabled in the CMRemote fork: this test exercises the upstream
+// `rustls::WebPKIVerifier` default for server-certificate chain validation,
+// which the fork replaced with a placeholder per ADR 0001 (CMRemote consumers
+// always install an SDP-fingerprint `verify_peer_certificate` callback).
 #[tokio::test]
+#[ignore = "CMRemote fork drops upstream WebPKIVerifier; see ADR 0001"]
 async fn test_server_certificate() -> Result<()> {
     /*env_logger::Builder::new()
     .format(|buf, record| {
@@ -1372,7 +1382,7 @@ async fn test_server_certificate() -> Result<()> {
 
     let server_name = "localhost".to_owned();
     let cert = Certificate::generate_self_signed(vec![server_name.clone()])?;
-    let mut ca_pool = rustls::RootCertStore::empty();
+    let mut ca_pool = crate::pki::RootCertStore::empty();
     ca_pool
         .add(&cert.certificate[0])
         .map_err(|_err| Error::Other("add cert error".to_owned()))?;

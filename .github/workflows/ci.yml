@@ -1,0 +1,110 @@
+name: ci
+
+# Five-platform CI matrix per ADR 0001 (CMRemote webrtc fork instructions),
+# Question 5: build & test on every supported CMRemote target so a green
+# `main` is sufficient evidence to tag `v0.5.4-cmremote.1` and consume the
+# fork from `agent-rs/` via `[patch.crates-io]`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+          - target: x86_64-apple-darwin
+            runner: macos-13
+          - target: aarch64-apple-darwin
+            runner: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # aws-lc-rs builds the AWS-LC C library from source. On Windows it
+      # additionally requires NASM for the x86_64 assembly paths; cmake is
+      # pre-installed on all GitHub-hosted runners.
+      - name: Install NASM (Windows only)
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: cargo build
+        run: cargo build --verbose --target ${{ matrix.target }}
+
+      - name: cargo test
+        run: cargo test --verbose --target ${{ matrix.target }}
+
+  lint:
+    name: rustfmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  no-banned-crates:
+    name: dep-graph free of ring / webpki / rustls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Hard precondition for tagging per runbook Step 4.5: the lockfile must
+      # contain none of the crates the CMRemote `agent-rs/` workspace bans.
+      - name: Assert no `ring` in dep graph
+        run: |
+          if cargo tree -i ring 2>/dev/null; then
+            echo "::error::ring is present in the dep graph"
+            exit 1
+          fi
+
+      - name: Assert no `webpki` in dep graph
+        run: |
+          if cargo tree -i webpki 2>/dev/null; then
+            echo "::error::webpki is present in the dep graph"
+            exit 1
+          fi
+
+      - name: Assert no `rustls` in dep graph
+        run: |
+          if cargo tree -i rustls 2>/dev/null; then
+            echo "::error::rustls is present in the dep graph"
+            exit 1
+          fi

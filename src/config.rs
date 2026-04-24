@@ -75,13 +75,13 @@ pub struct Config {
     /// that one peer uses when verifying the other peer's certificates.
     /// If RootCAs is nil, TLS uses the host's root CA set.
     /// Used by Client to verify server's certificate
-    pub roots_cas: rustls::RootCertStore,
+    pub roots_cas: crate::pki::RootCertStore,
 
     /// client_cas defines the set of root certificate authorities
     /// that servers use if required to verify a client certificate
     /// by the policy in client_auth.
     /// Used by Server to verify client's certificate
-    pub client_cas: rustls::RootCertStore,
+    pub client_cas: crate::pki::RootCertStore,
 
     /// server_name is used to verify the hostname on the returned
     /// certificates unless insecure_skip_verify is given.
@@ -113,8 +113,8 @@ impl Default for Config {
             insecure_skip_verify: false,
             insecure_hashes: false,
             verify_peer_certificate: None,
-            roots_cas: rustls::RootCertStore::empty(),
-            client_cas: rustls::RootCertStore::empty(),
+            roots_cas: crate::pki::RootCertStore::empty(),
+            client_cas: crate::pki::RootCertStore::empty(),
             server_name: String::default(),
             mtu: 0,
             replay_protection_window: 0,

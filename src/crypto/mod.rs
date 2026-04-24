@@ -11,23 +11,23 @@ use crate::error::*;
 use crate::record_layer::record_layer_header::*;
 use crate::signature_hash_algorithm::{HashAlgorithm, SignatureAlgorithm, SignatureHashAlgorithm};
 
-use der_parser::{oid, oid::Oid};
-use rcgen::KeyPair;
 use aws_lc_rs::rand::SystemRandom;
 use aws_lc_rs::signature::{EcdsaKeyPair, Ed25519KeyPair, RsaKeyPair};
+use der_parser::{oid, oid::Oid};
+use rcgen::KeyPair;
 use std::sync::Arc;
 
 #[derive(Clone, PartialEq)]
 pub struct Certificate {
-    pub certificate: Vec<rustls::Certificate>,
+    pub certificate: Vec<crate::pki::Certificate>,
     pub private_key: CryptoPrivateKey,
 }
 
 impl Certificate {
     pub fn generate_self_signed(subject_alt_names: impl Into<Vec<String>>) -> Result<Self> {
-        let cert = rcgen::generate_simple_self_signed(subject_alt_names)?;
-        let certificate = cert.serialize_der()?;
-        let key_pair = cert.get_key_pair();
+        let cert_key = rcgen::generate_simple_self_signed(subject_alt_names)?;
+        let certificate = cert_key.cert.der().to_vec();
+        let key_pair = &cert_key.key_pair;
         let serialized_der = key_pair.serialize_der();
         let private_key = if key_pair.is_compatible(&rcgen::PKCS_ED25519) {
             CryptoPrivateKey {
@@ -61,7 +61,7 @@ impl Certificate {
         };
 
         Ok(Certificate {
-            certificate: vec![rustls::Certificate(certificate)],
+            certificate: vec![crate::pki::Certificate(certificate)],
             private_key,
         })
     }
@@ -70,11 +70,10 @@ impl Certificate {
         subject_alt_names: impl Into<Vec<String>>,
         alg: &'static rcgen::SignatureAlgorithm,
     ) -> Result<Self> {
-        let mut params = rcgen::CertificateParams::new(subject_alt_names);
-        params.alg = alg;
-        let cert = rcgen::Certificate::from_params(params)?;
-        let certificate = cert.serialize_der()?;
-        let key_pair = cert.get_key_pair();
+        let key_pair = rcgen::KeyPair::generate_for(alg)?;
+        let params = rcgen::CertificateParams::new(subject_alt_names)?;
+        let cert = params.self_signed(&key_pair)?;
+        let certificate = cert.der().to_vec();
         let serialized_der = key_pair.serialize_der();
         let private_key = if key_pair.is_compatible(&rcgen::PKCS_ED25519) {
             CryptoPrivateKey {
@@ -108,7 +107,7 @@ impl Certificate {
         };
 
         Ok(Certificate {
-            certificate: vec![rustls::Certificate(certificate)],
+            certificate: vec![crate::pki::Certificate(certificate)],
             private_key,
         })
     }
@@ -289,28 +288,29 @@ fn verify_signature(
     let (_, certificate) = x509_parser::parse_x509_certificate(&raw_certificates[0])
         .map_err(|e| Error::Other(e.to_string()))?;
 
-    let verify_alg: &dyn aws_lc_rs::signature::VerificationAlgorithm = match hash_algorithm.signature {
-        SignatureAlgorithm::Ed25519 => &aws_lc_rs::signature::ED25519,
-        SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
-            &aws_lc_rs::signature::ECDSA_P256_SHA256_ASN1
-        }
-        SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
-            &aws_lc_rs::signature::ECDSA_P384_SHA384_ASN1
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha1 => {
-            &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA1_FOR_LEGACY_USE_ONLY
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
-            &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA256
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
-            &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA384
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha512 => {
-            &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA512
-        }
-        _ => return Err(Error::ErrKeySignatureVerifyUnimplemented),
-    };
+    let verify_alg: &dyn aws_lc_rs::signature::VerificationAlgorithm =
+        match hash_algorithm.signature {
+            SignatureAlgorithm::Ed25519 => &aws_lc_rs::signature::ED25519,
+            SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
+                &aws_lc_rs::signature::ECDSA_P256_SHA256_ASN1
+            }
+            SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
+                &aws_lc_rs::signature::ECDSA_P384_SHA384_ASN1
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha1 => {
+                &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA1_FOR_LEGACY_USE_ONLY
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
+                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA256
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
+                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA384
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha512 => {
+                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA512
+            }
+            _ => return Err(Error::ErrKeySignatureVerifyUnimplemented),
+        };
 
     log::trace!("Picked an algorithm {:?}", verify_alg);
 
@@ -397,14 +397,14 @@ pub(crate) fn verify_certificate_verify(
     )
 }
 
-pub(crate) fn load_certs(raw_certificates: &[Vec<u8>]) -> Result<Vec<rustls::Certificate>> {
+pub(crate) fn load_certs(raw_certificates: &[Vec<u8>]) -> Result<Vec<crate::pki::Certificate>> {
     if raw_certificates.is_empty() {
         return Err(Error::ErrLengthMismatch);
     }
 
     let mut certs = vec![];
     for raw_cert in raw_certificates {
-        let cert = rustls::Certificate(raw_cert.to_vec());
+        let cert = crate::pki::Certificate(raw_cert.to_vec());
         certs.push(cert);
     }
 
@@ -413,8 +413,8 @@ pub(crate) fn load_certs(raw_certificates: &[Vec<u8>]) -> Result<Vec<rustls::Cer
 
 pub(crate) fn verify_client_cert(
     raw_certificates: &[Vec<u8>],
-    cert_verifier: &Arc<dyn rustls::ClientCertVerifier>,
-) -> Result<Vec<rustls::Certificate>> {
+    cert_verifier: &Arc<dyn crate::pki::ClientCertVerifier>,
+) -> Result<Vec<crate::pki::Certificate>> {
     let chains = load_certs(raw_certificates)?;
 
     match cert_verifier.verify_client_cert(&chains, None) {
@@ -427,17 +427,13 @@ pub(crate) fn verify_client_cert(
 
 pub(crate) fn verify_server_cert(
     raw_certificates: &[Vec<u8>],
-    cert_verifier: &Arc<dyn rustls::ServerCertVerifier>,
-    roots: &rustls::RootCertStore,
+    cert_verifier: &Arc<dyn crate::pki::ServerCertVerifier>,
+    roots: &crate::pki::RootCertStore,
     server_name: &str,
-) -> Result<Vec<rustls::Certificate>> {
+) -> Result<Vec<crate::pki::Certificate>> {
     let chains = load_certs(raw_certificates)?;
-    let dns_name = match webpki::DNSNameRef::try_from_ascii_str(server_name) {
-        Ok(dns_name) => dns_name,
-        Err(err) => return Err(Error::Other(err.to_string())),
-    };
 
-    match cert_verifier.verify_server_cert(roots, &chains, dns_name, &[]) {
+    match cert_verifier.verify_server_cert(roots, &chains, server_name, &[]) {
         Ok(_) => {}
         Err(err) => return Err(Error::Other(err.to_string())),
     };

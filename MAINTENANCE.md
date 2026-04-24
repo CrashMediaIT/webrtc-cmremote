@@ -19,7 +19,9 @@ This fork exists to enable CMRemote's `agent-rs/` workspace to use WebRTC DTLS w
    git checkout -b cmremote/v<NEW>-aws-lc-rs v<NEW>
    ```
 
-2. Re-apply the symbol substitution (mechanical sed patch):
+2. Re-apply the symbol substitution (mechanical sed patch). The runbook ships
+   this snippet, but only `src/crypto/mod.rs` actually contains `ring::`
+   symbols in `webrtc-dtls@v0.5.4`:
    ```bash
    git ls-files 'src/**/*.rs' | xargs sed -i \
        -e 's|use ring::|use aws_lc_rs::|g' \
@@ -27,16 +29,27 @@ This fork exists to enable CMRemote's `agent-rs/` workspace to use WebRTC DTLS w
        -e 's|ring::rand::|aws_lc_rs::rand::|g'
    ```
 
-3. Verify no `ring` references remain:
+3. Verify no real `ring` references remain. **Do not** use the runbook's
+   `! grep -rn 'ring' src/` — it false-positives on `String::`, `Ordering::`,
+   `from_utf8`, `server_name`, etc. Use a word-boundary check instead:
    ```bash
-   ! grep -rn 'ring' src/
+   ! grep -rn -E '\b(use ring|ring::|extern crate ring)\b' src/
    ```
 
 4. Update dependencies in `Cargo.toml`:
    - Remove `ring` dependency
    - Ensure `aws-lc-rs = "1"` is present
-   - Update `rcgen` to use `aws_lc_rs` feature
-   - Update or remove `rustls` as needed
+   - Update `rcgen` to use `aws_lc_rs` feature (rcgen ≥ 0.13)
+   - Drop `rustls` and `webpki` entirely. The fork ships an internal
+     `crate::pki` module that provides the type-shape `webrtc-dtls` needs
+     (`Certificate`, `RootCertStore`, `Server/ClientCertVerifier`,
+     `WebPKIVerifier`, `AllowAnyAuthenticatedClient`); the `WebPKIVerifier`
+     and `AllowAnyAuthenticatedClient` defaults are intentional placeholders
+     because CMRemote's WebRTC stack always installs an SDP-fingerprint
+     `verify_peer_certificate` callback (RFC 8122).
+   - Pin `x25519-dalek = "=2.0.0-pre.1"` exactly. Upstream wrote
+     `"2.0.0-pre.1"`, but Cargo SemVer-matches `2.0.1` (current 2.x stable),
+     where `StaticSecret` was renamed and the build breaks.
 
 5. Run the test suite:
    ```bash
@@ -44,6 +57,22 @@ This fork exists to enable CMRemote's `agent-rs/` workspace to use WebRTC DTLS w
    cargo test
    cargo clippy --all-targets -- -D warnings
    cargo fmt -- --check
+   ```
+
+   Two upstream tests are marked `#[ignore]` in this fork because they
+   exercise the `WebPKIVerifier` defaults the fork dropped:
+   `conn::conn_test::test_client_certificate` and
+   `conn::conn_test::test_server_certificate`. Confirm the *count* of
+   ignored tests still matches expectations after a rebase; if upstream adds
+   new tests against the verifier defaults, mark them too.
+
+5a. Verify the lockfile is free of the banned crates (this is the hard
+    precondition for tagging per ADR 0001 §"Step 4.5"). The CI workflow
+    enforces this in the `no-banned-crates` job:
+   ```bash
+   ! cargo tree -i ring 2>/dev/null
+   ! cargo tree -i webpki 2>/dev/null
+   ! cargo tree -i rustls 2>/dev/null
    ```
 
 6. Re-run the agent-side spike PoC tests:

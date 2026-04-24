@@ -215,7 +215,9 @@ impl DTLSConn {
             client_cert_verifier: if config.client_auth as u8
                 >= ClientAuthType::VerifyClientCertIfGiven as u8
             {
-                Some(rustls::AllowAnyAuthenticatedClient::new(config.client_cas))
+                Some(crate::pki::AllowAnyAuthenticatedClient::new(
+                    config.client_cas,
+                ))
             } else {
                 None
             },
