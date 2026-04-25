@@ -3,8 +3,8 @@ mod integrity_test;
 
 use std::fmt;
 
-use md5::{Digest, Md5};
 use aws_lc_rs::hmac;
+use md5::{Digest, Md5};
 
 use crate::attributes::*;
 use crate::checks::*;

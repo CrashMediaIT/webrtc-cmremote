@@ -1,10 +1,10 @@
 use std::ops::Add;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use dtls::crypto::{CryptoPrivateKey, CryptoPrivateKeyKind};
-use rcgen::{CertificateParams, KeyPair};
 use aws_lc_rs::rsa;
 use aws_lc_rs::signature::{EcdsaKeyPair, Ed25519KeyPair};
+use dtls::crypto::{CryptoPrivateKey, CryptoPrivateKeyKind};
+use rcgen::{CertificateParams, KeyPair};
 use sha2::{Digest, Sha256};
 
 use crate::dtls_transport::dtls_fingerprint::RTCDtlsFingerprint;

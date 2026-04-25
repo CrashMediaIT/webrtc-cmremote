@@ -17,9 +17,9 @@ use rustls::client::danger::ServerCertVerifier;
 use rustls::pki_types::{CertificateDer, ServerName};
 use rustls::server::danger::ClientCertVerifier;
 
-use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 use aws_lc_rs::rand::SystemRandom;
 use aws_lc_rs::signature::{EcdsaKeyPair, Ed25519KeyPair, KeyPair as _};
+use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 
 use crate::curve::named_curve::*;
 use crate::error::*;
@@ -309,36 +309,37 @@ fn verify_signature(
     let (_, certificate) = x509_parser::parse_x509_certificate(&raw_certificates[0])
         .map_err(|e| Error::Other(e.to_string()))?;
 
-    let verify_alg: &dyn aws_lc_rs::signature::VerificationAlgorithm = match hash_algorithm.signature {
-        SignatureAlgorithm::Ed25519 => &aws_lc_rs::signature::ED25519,
-        SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
-            &aws_lc_rs::signature::ECDSA_P256_SHA256_ASN1
-        }
-        SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
-            &aws_lc_rs::signature::ECDSA_P384_SHA384_ASN1
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha1 => {
-            &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA1_FOR_LEGACY_USE_ONLY
-        }
-        SignatureAlgorithm::Rsa if (hash_algorithm.hash == HashAlgorithm::Sha256) => {
-            if remote_key_signature.len() < 256 && insecure_verification {
-                &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA256_FOR_LEGACY_USE_ONLY
-            } else {
-                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA256
+    let verify_alg: &dyn aws_lc_rs::signature::VerificationAlgorithm =
+        match hash_algorithm.signature {
+            SignatureAlgorithm::Ed25519 => &aws_lc_rs::signature::ED25519,
+            SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha256 => {
+                &aws_lc_rs::signature::ECDSA_P256_SHA256_ASN1
             }
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
-            &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA384
-        }
-        SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha512 => {
-            if remote_key_signature.len() < 256 && insecure_verification {
-                &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA512_FOR_LEGACY_USE_ONLY
-            } else {
-                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA512
+            SignatureAlgorithm::Ecdsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
+                &aws_lc_rs::signature::ECDSA_P384_SHA384_ASN1
             }
-        }
-        _ => return Err(Error::ErrKeySignatureVerifyUnimplemented),
-    };
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha1 => {
+                &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA1_FOR_LEGACY_USE_ONLY
+            }
+            SignatureAlgorithm::Rsa if (hash_algorithm.hash == HashAlgorithm::Sha256) => {
+                if remote_key_signature.len() < 256 && insecure_verification {
+                    &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA256_FOR_LEGACY_USE_ONLY
+                } else {
+                    &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA256
+                }
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha384 => {
+                &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA384
+            }
+            SignatureAlgorithm::Rsa if hash_algorithm.hash == HashAlgorithm::Sha512 => {
+                if remote_key_signature.len() < 256 && insecure_verification {
+                    &aws_lc_rs::signature::RSA_PKCS1_1024_8192_SHA512_FOR_LEGACY_USE_ONLY
+                } else {
+                    &aws_lc_rs::signature::RSA_PKCS1_2048_8192_SHA512
+                }
+            }
+            _ => return Err(Error::ErrKeySignatureVerifyUnimplemented),
+        };
 
     log::trace!("Picked an algorithm {verify_alg:?}");
 

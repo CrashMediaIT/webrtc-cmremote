@@ -101,17 +101,25 @@ jobs:
       # (`ring`, `webpki`). `rustls` itself is intentionally NOT banned —
       # it is consumed here with the `aws_lc_rs` feature so the crypto
       # provider is `aws-lc-rs`, satisfying the ADR's intent.
+      #
+      # NOTE: `cargo tree -i <pkg>` exits 0 with a warning to stderr when the
+      # package is absent, so we check stdout for an actual tree (a non-empty
+      # line that does not start with `warning:`).
       - name: Assert no `ring` in dep graph
         run: |
-          if cargo tree -i ring 2>/dev/null; then
+          output=$(cargo tree -i ring 2>/dev/null || true)
+          if [ -n "$output" ]; then
             echo "::error::ring is present in the dep graph"
+            echo "$output"
             exit 1
           fi
 
       - name: Assert no `webpki` in dep graph
         run: |
-          if cargo tree -i webpki 2>/dev/null; then
+          output=$(cargo tree -i webpki 2>/dev/null || true)
+          if [ -n "$output" ]; then
             echo "::error::webpki is present in the dep graph"
+            echo "$output"
             exit 1
           fi
 

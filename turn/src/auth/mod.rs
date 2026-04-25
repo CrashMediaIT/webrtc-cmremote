@@ -4,10 +4,10 @@ mod auth_test;
 use std::net::SocketAddr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use aws_lc_rs::hmac;
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use md5::{Digest, Md5};
-use aws_lc_rs::hmac;
 
 use crate::error::*;
 
