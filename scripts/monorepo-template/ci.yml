@@ -1,0 +1,111 @@
+name: ci
+
+# Monorepo-fork CI: workspace-scoped five-platform matrix per ADR 0001
+# Steps 15 (cross-compile coverage on five target triples) and 18
+# (rebase cadence). Mirrors the shape of the dtls v0.5.4 fork's CI on
+# main but tests `--workspace` so dtls/, stun/, turn/, and the umbrella
+# webrtc/ crate are exercised together — the audit doc's recommended
+# Option L2 layout.
+#
+# Note vs. dtls v0.5.4 CI: rustls is **kept** on this branch (Step 11
+# only swaps its feature flag from "ring" to "aws_lc_rs"), so the
+# no-banned-crates job here only fails on `ring` and `webpki`.
+
+on:
+  push:
+    branches: ['cmremote/v0.17.0-aws-lc-rs']
+  pull_request:
+    branches: ['cmremote/v0.17.0-aws-lc-rs']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+          - target: x86_64-apple-darwin
+            runner: macos-13
+          - target: aarch64-apple-darwin
+            runner: macos-14
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # aws-lc-rs builds the AWS-LC C library from source. On Windows it
+      # additionally requires NASM for the x86_64 assembly paths; cmake is
+      # pre-installed on all GitHub-hosted runners.
+      - name: Install NASM (Windows only)
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: cargo build --workspace
+        run: cargo build --workspace --verbose --target ${{ matrix.target }}
+
+      - name: cargo test --workspace
+        run: cargo test --workspace --verbose --target ${{ matrix.target }}
+
+  lint:
+    name: rustfmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  no-banned-crates:
+    name: dep-graph free of ring / webpki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Hard precondition for tagging v0.17.0-cmremote.1 per ADR 0001
+      # §§11–14: the workspace lockfile must contain neither `ring` nor
+      # `webpki`. `rustls` is intentionally NOT banned here — Step 11
+      # keeps it with the `aws_lc_rs` feature instead of `ring`.
+      - name: Assert no `ring` in dep graph
+        run: |
+          if cargo tree --workspace -i ring 2>/dev/null; then
+            echo "::error::ring is present in the workspace dep graph"
+            exit 1
+          fi
+
+      - name: Assert no `webpki` in dep graph
+        run: |
+          if cargo tree --workspace -i webpki 2>/dev/null; then
+            echo "::error::webpki is present in the workspace dep graph"
+            exit 1
+          fi
