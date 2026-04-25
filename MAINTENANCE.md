@@ -8,6 +8,49 @@ This repository is a fork of [`webrtc-rs/dtls`](https://github.com/webrtc-rs/dtl
 
 This fork exists to enable CMRemote's `agent-rs/` workspace to use WebRTC DTLS without depending on the `ring` crate, which is banned in the workspace per [ADR 0001](https://github.com/CrashMediaIT/CMRemote/blob/master/docs/decisions/0001-webrtc-crypto-provider.md).
 
+## Maintainer one-time branch fix-up
+
+> **Status (2026-04-25):** the two `v*-cmremote.*` tags are correct and immutable, but the `cmremote/*` long-lived branches that ADR 0001 §Step 10 calls for are not yet aligned with them. This section is the one-time recipe to fix that. It is **not** a routine maintenance trigger — once executed, future rebases follow the per-branch "Trigger 1" recipes below, which already push branch and tag together.
+
+### Why this is needed
+
+- `cmremote/v0.5.4-aws-lc-rs` currently points at upstream-plus-CODEOWNERS (`83236f8`), not the PR #2 fork commit. The tag `v0.5.4-cmremote.1` (`5ef4a82`) is on `main` instead.
+- `cmremote/v0.17.0-aws-lc-rs` does not exist at all. The tag `v0.17.0-cmremote.1` (`2c1ab4f`) is on `main` instead — the agent that produced PR #4 could only push one branch.
+
+Tag-based `[patch.crates-io]` consumers are unaffected (they address the immutable tag SHAs directly), so this is policy hygiene, not a consumption blocker.
+
+### Procedure
+
+1. **Run before enabling `cmremote/*` branch protection's force-push prohibition** (per [GITHUB_SETTINGS.md §4a](GITHUB_SETTINGS.md#4a-branch-protection-rules-for-cmremote-long-lived-branches)), or run it as an admin with bypass enabled. After this fix-up the branches will be immutable for real.
+
+2. From a local clone with `origin = github.com/CrashMediaIT/webrtc-cmremote`:
+   ```bash
+   git fetch origin --tags
+
+   # Realign the v0.5.4 branch onto its tag commit (force-update, replaces the upstream-only stub).
+   git push origin +refs/tags/v0.5.4-cmremote.1^{commit}:refs/heads/cmremote/v0.5.4-aws-lc-rs
+
+   # Create the v0.17 monorepo branch from its tag commit.
+   git push origin refs/tags/v0.17.0-cmremote.1^{commit}:refs/heads/cmremote/v0.17.0-aws-lc-rs
+   ```
+
+3. Verify both branches now match their tags:
+   ```bash
+   git ls-remote origin refs/heads/cmremote/v0.5.4-aws-lc-rs   # expect 5ef4a82…
+   git ls-remote origin refs/heads/cmremote/v0.17.0-aws-lc-rs  # expect 2c1ab4f…
+   ```
+
+4. Apply (or re-apply) the `cmremote/*` branch protection rule per [GITHUB_SETTINGS.md §4a](GITHUB_SETTINGS.md#4a-branch-protection-rules-for-cmremote-long-lived-branches).
+
+### CI gating caveat for the existing `.1` tags
+
+Both existing tags (`v0.5.4-cmremote.1` and `v0.17.0-cmremote.1`) were cut **before** the `ci` workflow concluded on either commit — every `ci` run on `main` is currently stuck in `queued` and has no `success`/`failure` outcome. This violates the ADR 0001 §"Step 4.5" / §Step 16 precondition that tagging be gated on green CI.
+
+The runners need to be unblocked at the org/repo settings level (Settings → Actions → Runners; check that the `ubuntu-24.04-arm`, `macos-13`, and `macos-14` pools are enabled for the org). Once `ci` actually concludes:
+
+- If green on the existing tag commits (`5ef4a82`, `2c1ab4f`), the `.1` tags are retroactively validated; no re-tag needed.
+- If red and a fix has to land, cut `v<UPSTREAM>-cmremote.2` on the green commit per the standard "Trigger 1" recipe below. Bump the matching `tag = "..."` lines in `CMRemote/agent-rs/Cargo.toml` at the same time.
+
 ## Rebase Cadence — `cmremote/v0.5.4-aws-lc-rs` (dtls-only)
 
 ### Trigger 1: Upstream Minor Releases
@@ -206,7 +249,7 @@ The monorepo fork's maintenance contract is structurally identical to the dtls-o
    git push origin v<NEW>-cmremote.1
    ```
 
-8. Update the four `[patch.crates-io]` entries in `CMRemote/agent-rs/Cargo.toml` (`webrtc`, `webrtc-dtls`, `stun`, `turn`) to reference the new tag.
+8. Update the four `[patch.crates-io]` entries in `CMRemote/agent-rs/Cargo.toml` (`webrtc`, `dtls`, `stun`, `turn` — bare names, **not** `webrtc-dtls`; the v0.17 monorepo publishes its `dtls/` sub-crate without the `package = "..."` rename) to reference the new tag.
 
 ### Trigger 2: Security Advisories
 

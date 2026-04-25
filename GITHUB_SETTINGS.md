@@ -97,7 +97,7 @@ CMRemote fork of webrtc-rs/dtls with ring swapped for aws-lc-rs. Tracks ADR 0001
 4. Configure the settings listed above
 5. Save changes
 
-**Note:** Until the monorepo fork actually lands (Step 10 onward), only the existing `cmremote/v0.5.4-aws-lc-rs` branch matches this pattern. The pattern is forward-looking by design so no settings change is required when Step 10 creates the second branch.
+**Note:** Until the monorepo fork branch is actually pushed (Step 10), only the existing `cmremote/v0.5.4-aws-lc-rs` branch matches this pattern. The pattern is forward-looking by design so no settings change is required when the maintainer creates the second branch — see [MAINTENANCE.md → "Maintainer one-time branch fix-up"](MAINTENANCE.md#maintainer-one-time-branch-fix-up) for the exact push commands. Force-push is `Disabled` above; the one-time fix-up of the existing `cmremote/v0.5.4-aws-lc-rs` branch (which today does not point at the tag commit) must therefore be done either before this rule is enabled or by an admin with bypass.
 
 ### 4b. Tag Protection Rules for `v*-cmremote.*`
 
@@ -141,6 +141,8 @@ After manual configuration, verify:
 - [ ] Branch deletion is disabled on `main`
 - [ ] Branch protection rule for `cmremote/*` is configured (covers `cmremote/v0.5.4-aws-lc-rs` and future monorepo branches)
 - [ ] Force pushes and deletions are disabled on `cmremote/*` branches
+- [ ] `cmremote/v0.5.4-aws-lc-rs` branch points at tag commit `5ef4a82` (v0.5.4-cmremote.1) — see [MAINTENANCE.md](MAINTENANCE.md#maintainer-one-time-branch-fix-up)
+- [ ] `cmremote/v0.17.0-aws-lc-rs` branch exists and points at tag commit `2c1ab4f` (v0.17.0-cmremote.1) — see [MAINTENANCE.md](MAINTENANCE.md#maintainer-one-time-branch-fix-up)
 - [ ] Tag protection rule for `v*-cmremote.*` is configured
 - [ ] CODEOWNERS file is recognized (test by opening a PR)
 - [ ] Dependabot alerts are enabled
