@@ -2,14 +2,24 @@ name: ci
 
 # Five-platform CI matrix per ADR 0001 (CMRemote webrtc fork instructions),
 # Question 5: build & test on every supported CMRemote target so a green
-# `main` is sufficient evidence to tag `v0.5.4-cmremote.1` and consume the
-# fork from `agent-rs/` via `[patch.crates-io]`.
+# branch is sufficient evidence to tag `v<upstream>-cmremote.<rev>` and
+# consume the fork from `agent-rs/` via `[patch.crates-io]`.
+#
+# This workflow covers both long-lived branches of the fork:
+#   * `cmremote/v0.5.4-aws-lc-rs` (dtls-only, ADR Steps 1–9)
+#   * `cmremote/v0.17.0-aws-lc-rs` (monorepo: webrtc/, dtls/, stun/, turn/,
+#     ADR Steps 10–18)
+# plus `main`, where the active branch HEAD is fast-forwarded for visibility.
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'cmremote/**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'cmremote/**'
 
 env:
   CARGO_TERM_COLOR: always
@@ -52,10 +62,10 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: cargo build
-        run: cargo build --verbose --target ${{ matrix.target }}
+        run: cargo build --workspace --verbose --target ${{ matrix.target }}
 
       - name: cargo test
-        run: cargo test --verbose --target ${{ matrix.target }}
+        run: cargo test --workspace --verbose --target ${{ matrix.target }}
 
   lint:
     name: rustfmt + clippy
@@ -74,10 +84,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
   no-banned-crates:
-    name: dep-graph free of ring / webpki / rustls
+    name: dep-graph free of ring / webpki
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -87,7 +97,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # Hard precondition for tagging per runbook Step 4.5: the lockfile must
-      # contain none of the crates the CMRemote `agent-rs/` workspace bans.
+      # contain none of the crates the CMRemote `agent-rs/` workspace bans
+      # (`ring`, `webpki`). `rustls` itself is intentionally NOT banned —
+      # it is consumed here with the `aws_lc_rs` feature so the crypto
+      # provider is `aws-lc-rs`, satisfying the ADR's intent.
       - name: Assert no `ring` in dep graph
         run: |
           if cargo tree -i ring 2>/dev/null; then
@@ -102,9 +115,10 @@ jobs:
             exit 1
           fi
 
-      - name: Assert no `rustls` in dep graph
+      # Belt-and-braces: confirm rustls is not pulling ring transitively.
+      - name: Assert rustls is using aws_lc_rs (no ring under rustls)
         run: |
-          if cargo tree -i rustls 2>/dev/null; then
-            echo "::error::rustls is present in the dep graph"
+          if cargo tree -i ring 2>/dev/null | grep -q rustls; then
+            echo "::error::rustls is pulling ring transitively"
             exit 1
           fi
