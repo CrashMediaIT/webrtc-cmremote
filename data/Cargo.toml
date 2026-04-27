@@ -27,7 +27,7 @@ tokio = { version = "1.32.0", features = [
 ] }
 bytes = "1"
 log = "0.4"
-thiserror = "1"
+thiserror = "2"
 portable-atomic = "1.6"
 
 [dev-dependencies]

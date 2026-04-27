@@ -30,7 +30,7 @@ tokio = { version = "1.32.0", features = [
 ] }
 socket2 = { version = "0.5", features = ["all"] }
 log = "0.4"
-thiserror = "1"
+thiserror = "2"
 
 [dev-dependencies]
 env_logger = "0.11.3"

@@ -14,7 +14,7 @@ rtp.workspace = true
 
 byteorder = "1"
 bytes = "1"
-thiserror = "1"
+thiserror = "2"
 rand = "0.9"
 
 [dev-dependencies]

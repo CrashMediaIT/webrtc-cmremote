@@ -13,4 +13,4 @@ repository = "https://github.com/webrtc-rs/webrtc/tree/master/rtcp"
 util = { workspace = true, default-features = false, features = ["marshal"] }
 
 bytes = "1"
-thiserror = "1"
+thiserror = "2"
