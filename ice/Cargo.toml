@@ -48,7 +48,7 @@ ipnet = "2"
 clap = "3"
 lazy_static = "1"
 hyper = { version = "0.14.27", features = ["full"] }
-sha1 = "0.10"
+sha1 = "0.11"
 
 [[example]]
 name = "ping_pong"
