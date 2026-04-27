@@ -47,7 +47,7 @@ chrono = "0.4.28"
 ipnet = "2"
 clap = "3"
 lazy_static = "1"
-hyper = { version = "0.14.27", features = ["full"] }
+hyper = { version = "1.9.0", features = ["full"] }
 sha1 = "0.10"
 
 [[example]]
