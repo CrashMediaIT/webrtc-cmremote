@@ -14,7 +14,7 @@ util = { workspace = true, default-features = false, features = ["marshal"] }
 
 bytes = "1"
 rand = "0.9"
-thiserror = "1"
+thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 portable-atomic = "1.6"
 

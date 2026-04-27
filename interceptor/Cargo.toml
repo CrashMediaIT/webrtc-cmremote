@@ -19,7 +19,7 @@ tokio = { version = "1.32.0", features = ["sync", "time"] }
 async-trait = "0.1"
 futures = "0.3"
 bytes = "1"
-thiserror = "1"
+thiserror = "2"
 rand = "0.9"
 waitgroup = "0.1"
 log = "0.4"
