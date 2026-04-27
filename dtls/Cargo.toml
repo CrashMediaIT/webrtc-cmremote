@@ -39,7 +39,7 @@ tokio = { version = "1.32.0", features = [
 ] }
 async-trait = "0.1"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
-x509-parser = { version = "0.16", default-features = false }
+x509-parser = { version = "0.18", default-features = false }
 der-parser = "9.0"
 rcgen = { version = "0.13", default-features = false, features = ["aws_lc_rs", "pem"] }
 aws-lc-rs = "1"
