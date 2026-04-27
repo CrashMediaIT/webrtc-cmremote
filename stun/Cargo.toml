@@ -39,7 +39,7 @@ md-5 = "0.10"
 thiserror = "1"
 
 [dev-dependencies]
-clap = "3"
+clap = "4"
 criterion = "0.5"
 
 [[bench]]
