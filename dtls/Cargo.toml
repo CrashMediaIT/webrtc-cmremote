@@ -20,7 +20,7 @@ rand = "0.9"
 hmac = "0.12"
 sec1 = { version = "0.7", features = ["std"] }
 sha1 = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 aes = "0.8"
 cbc = { version = "0.1", features = ["block-padding", "alloc"] }
 aes-gcm = "0.10"
